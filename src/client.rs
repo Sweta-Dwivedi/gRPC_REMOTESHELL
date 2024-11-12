@@ -1,25 +1,57 @@
-use hello_world::greeter_client::GreeterClient;
-use hello_world::HelloRequest;
+use tonic::transport::Channel;
+use tonic::Request;
+use std::io::{self, Write};
+use remote_shell::remote_command_client::RemoteCommandClient;
+use remote_shell::CommandRequest;
 
-pub mod hello_world {
-    tonic::include_proto!("helloworld");
+pub mod remote_shell {
+    tonic::include_proto!("remote_shell"); // Path to your proto file
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client =
-        GreeterClient::connect("http://[::1]:50051").await?;
+    // Connect to the server address
+    let server_address = "http://127.0.0.1:12021";
+    let channel = Channel::from_shared(server_address.to_string())?.connect().await?;
+    let mut client = RemoteCommandClient::new(channel);
 
-    let request = tonic::Request::new(
-        HelloRequest {
-            name: "Sweta testing-2".into(),
+    println!("Connected to server at {}", server_address);
+
+    loop {
+        // Read command from user input
+        print!("$ ");
+        io::stdout().flush()?;
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        let cmd = input.trim();
+
+        // Exit condition
+        if cmd == "exit" {
+            println!("Disconnecting from server...");
+            break;
         }
-    );
 
-    let response = client.say_hello(request)
-        .await?;
+        // Split the command into name and arguments
+        let mut cmd_parts = cmd.split_whitespace();
+        let cmd_name = cmd_parts.next().unwrap_or("");
+        let cmd_args: Vec<String> = cmd_parts.map(|s| s.to_string()).collect();
 
-    println!("Response={:?}",response.into_inner().message);
+        // Send the command request to the server
+        let request = Request::new(CommandRequest {
+            cmd_name: cmd_name.to_string(),
+            cmd_args,
+        });
+
+        match client.send_command(request).await {
+            Ok(response) => {
+                println!("Server response: {}", response.into_inner().output);
+            }
+            Err(e) => {
+                eprintln!("Error: {}", e);
+            }
+        }
+    }
+
     Ok(())
-
 }

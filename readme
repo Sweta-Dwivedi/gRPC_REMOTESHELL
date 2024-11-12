@@ -1,0 +1,9 @@
+run the server side first by using
+
+cargo run --bin grpc-server
+
+in another shell, then run the client side by using
+
+cargo run --bin grpc-client
+
+now, execute the windows commands..

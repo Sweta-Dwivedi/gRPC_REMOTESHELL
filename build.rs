@@ -1,4 +1,5 @@
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tonic_build::compile_protos("proto/helloworld.proto")?;
-    Ok(())
+use tonic_build;
+
+fn main() {
+    tonic_build::compile_protos("proto/remote_shell.proto").unwrap();
 }
